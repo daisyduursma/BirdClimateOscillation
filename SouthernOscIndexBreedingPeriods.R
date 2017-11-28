@@ -22,6 +22,7 @@ library(gplots)
 library(reshape2)
 library(beanplot)
 library(reporttools)
+library(lmerTest)
 #figure
 library(lme4)
 library(MuMIn)
@@ -54,7 +55,7 @@ calcskew <- function(circulardates) {
 ##########################################
 
 obs.dir <-
-  '/Users/daisy/Google Drive/PhD/Data/Observaitons/Cleaned/Breeding/'
+  '/Users/daisy/GoogleDrive/PhD/Data/Observaitons/Cleaned/Breeding/'
 # Breeding quantiles
 dat <-
   fread(paste0(obs.dir, 'PointOfLayDayOfYear2016-09-20.csv'))[, c("Scientific.Name",
@@ -63,17 +64,30 @@ dat <-
                                                                   "sourceName",
                                                                   "type",
                                                                   "DOY_PL",
-                                                                  "year")]
+                                                                  "year",
+                                                                  "month")]
+
+
 
 dat$DOY_PL[dat$DOY_PL == 366] <- 365
 dat$month <- month(as.Date(as.character(dat$DOY_PL), format = "%j"))
+
+library(spdep)
+lmLayDate <- lm(DOY_PL~ lat + lon, data=dat)
+
+
+# test of spatial autocorrelation - avian vision
+GridCoords<-na.omit(as.matrix(cbind(dat$lon,dat$lat)))
+nlist<-dnearneigh(GridCoords,d1=0,d2=1000,
+                  longlat=TRUE) #distances are in meters, 
+moran.test(residuals(lmLayDate), listw=nb2listw(nlist, style="W")) #no evidence of spatial autocorrelation
 
 
 
 # traits
 inc <-
   read.csv(
-    '/Users/daisy/Google Drive/PhD/BreedingTiming/tables/SpeciesOfInterest_2016-10-07.csv'
+    '/Users/daisy/GoogleDrive/PhD/BreedingTiming/tables/SpeciesOfInterest_2016-10-07.csv'
   )
 taxon <-
   inc[c(
@@ -96,7 +110,7 @@ dat <-
 koeppen <-
   raster(
     paste0(
-      '/Users/daisy/Google Drive/PhD/Data/Spatial/BOM_climate_zones/kpngrp_major/koepenReclassified.asc'
+      '/Users/daisy/GoogleDrive/PhD/Data/Spatial/BOM_climate_zones/kpngrp_major/koepenReclassified.asc'
     ),
     proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84")
   )
@@ -120,7 +134,7 @@ TEMP <- subset(TEMP, date >= 190001) #limit time to same as NOAA data
 #read in BOM ENSO events
 #BOM
 SOI <-
-  read.csv("/Users/daisy/Google Drive/PhD/ENSO/Data/BOM_SOItest.csv")
+  read.csv("/Users/daisy/GoogleDrive/PhD/ENSO/Data/BOM_SOItest.csv")
 SOI$month2 <-
   formatC(SOI$monthNumeric, width = 2, flag = '0') #format months 1 becomes 01
 SOI$date <-
@@ -222,11 +236,11 @@ PhaseDat <- droplevels(rbind(high, low))
 ##########
 elevation <-
   raster(
-    "/Users/daisy/Google Drive/PhD/Data/Spatial/Elevation/eMAST_ANUClimate_fx_elev_v1m0.nc"
+    "/Users/daisy/GoogleDrive/PhD/Data/Spatial/Elevation/eMAST_ANUClimate_fx_elev_v1m0.nc"
   )
 distToCoast <-
   raster(
-    "/Users/daisy/Google Drive/PhD/Data/Spatial/DistanceToCoast/eMAST_ANUClimate_fx_dist_v1m0.nc"
+    "/Users/daisy/GoogleDrive/PhD/Data/Spatial/DistanceToCoast/eMAST_ANUClimate_fx_dist_v1m0.nc"
   )
 
 PhaseDat$elevation <-
@@ -404,26 +418,27 @@ ModifiedDate$logdist <- log10(ModifiedDate$distToCoast)
 
 
 #FULL - all fixed effects and random model
-library(lmerTest)
+
 mF <-
   lmer(
-    modifiedDOY ~ BreedingENSO + logelev * logdist + lat + (1 |
-                                                              Acc) + (1 | Scientific.Name) + (1 |
-                                                                                                Order),
+    modifiedDOY ~ BreedingENSO + logelev * logdist + 
+      lat + (1 |Acc) + (1|Year) + (1 + BreedingENSO| Scientific.Name) + (1 |Order),
     REML = T,
     data = ModifiedDate
   )
+
+
 summary(mF)
 qqPlot(residuals(mF), main = ("DOY"))
 Anova(mF, test.statistic = "Chisq")#get p value
 r.squaredGLMM(mF)
 anova(mF, test = "marginal", type = 2)#get F statement
-
 TukeyENSO <- glht(mF, linfct = mcp(BreedingENSO = "Tukey"))
 summary(TukeyENSO)
 
+
 #get mean breeding days for differnt phase
-lsmeans(mF)
+lsmeansLT(mF)
 
 
 visreg(mF,
@@ -485,7 +500,7 @@ wide$longerBPNEU <-
 wide$laterpeakNEU <- with(wide, Quantile50.LaNina - Quantile50.Neutral)
 wide$laterconclusionNEU <- with(wide, modified95LA - modified95NEU)
 
-write.csv(wide, '/Users/daisy/Google Drive/PhD/ENSO/Tables/TemperateWideSummary.csv', row.names=F)
+write.csv(wide, '/Users/daisy/GoogleDrive/PhD/ENSO/Tables/TemperateWideSummary.csv', row.names=F)
 
 #% of species with earlier starts during La Nina
 nrow(subset(wide, earlierstart < 0)) / nrow(wide) * 100
@@ -592,7 +607,7 @@ r.squaredGLMM(fit)
 
 pdf(
   file = paste0(
-    "/Users/daisy/Google Drive/PhD/ENSO/TemperateChangeELP",
+    "/Users/daisy/GoogleDrive/PhD/ENSO/TemperateChangeELP",
     as.Date(Sys.time()),
     ".pdf"
   ),
@@ -653,7 +668,7 @@ sd(dec$ChangeBPLAEL)
 # #make supplementary table
 # allDat$Region<-"Arid"
 #
-# write.csv(allDat,'/Users/daisy/Google Drive/PhD/ENSO/Tables/AridSummary.csv',row.names=FALSE)
+# write.csv(allDat,'/Users/daisy/GoogleDrive/PhD/ENSO/Tables/AridSummary.csv',row.names=FALSE)
 #
 
 
@@ -732,7 +747,7 @@ library(doBy)
 
 summaryBy(modified95~time,data=wide,FUN=c(min,max))
 
-# pdf(file = paste0("/Users/daisy/Google Drive/PhD/ENSO/Manuscript/GlobalChangeBiology/Figures/",as.Date(Sys.time()),".pdf"),
+# pdf(file = paste0("/Users/daisy/GoogleDrive/PhD/ENSO/Manuscript/GlobalChangeBiology/Figures/",as.Date(Sys.time()),".pdf"),
 #     width = 3.2, height = 6)
 par(mfrow = c(2,1),
     mar = c(2,4,2,1))

@@ -2,7 +2,7 @@
 #Figure 1
 ###################
 
-pdf(file = paste0("/Users/daisy/Google Drive/PhD/ENSO/Manuscript/AustralEcology/Figures/Hypothesis",as.Date(Sys.time()),".pdf"),
+pdf(file = paste0("/Users/daisy/GoogleDrive/PhD/ENSO/Manuscript/AustralEcology/Figures/Hypothesis",as.Date(Sys.time()),".pdf"),
     width = 4, height = 5.5)
  par(mfrow = c(2,1),
      mar = c(3,4,3,1),
