@@ -1,6 +1,4 @@
-##########################################
-############ step 1. get set up to work ########
-##########################################
+
 
 ##########################################
 ############ step 1. get set up to work ########
@@ -23,7 +21,7 @@ library(reshape2)
 library(beanplot)
 library(reporttools)
 library(lmerTest)
-#figure
+library(spdep)
 library(lme4)
 library(MuMIn)
 #library(afex)
@@ -72,16 +70,6 @@ dat <-
 dat$DOY_PL[dat$DOY_PL == 366] <- 365
 dat$month <- month(as.Date(as.character(dat$DOY_PL), format = "%j"))
 
-library(spdep)
-lmLayDate <- lm(DOY_PL~ lat + lon, data=dat)
-
-
-# test of spatial autocorrelation - avian vision
-GridCoords<-na.omit(as.matrix(cbind(dat$lon,dat$lat)))
-nlist<-dnearneigh(GridCoords,d1=0,d2=1000,
-                  longlat=TRUE) #distances are in meters, 
-moran.test(residuals(lmLayDate), listw=nb2listw(nlist, style="W")) #no evidence of spatial autocorrelation
-
 
 
 # traits
@@ -123,9 +111,16 @@ dat$koeppen <- raster::extract(koeppen, cbind(dat$lon, dat$lat))
 
 #convert data to radians to make circular vector
 dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
+
+##########################
+#Chose the region of interest
+#Analysis is identical for both regions
 #Koeppen zones: 35-Tropical, 32-Subtropical, 22-Desert,13-Grassland,3-Temperate
-#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #temperate region Breeding Period
-TEMP <- subset(dat, koeppen == 3)
+
+##########################
+
+#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
+TEMP <- subset(dat, koeppen == 3)#temperate region
 TEMP$month <-
   formatC(TEMP$month, width = 2, flag = '0') #format months 1 becomes 01
 TEMP$date <-
@@ -436,6 +431,9 @@ anova(mF, test = "marginal", type = 2)#get F statement
 TukeyENSO <- glht(mF, linfct = mcp(BreedingENSO = "Tukey"))
 summary(TukeyENSO)
 
+library(sjPlot)
+library(sjmisc)
+sjt.lmer(mF)
 
 #get mean breeding days for differnt phase
 lsmeansLT(mF)
@@ -446,13 +444,6 @@ visreg(mF,
        by = "BreedingENSO",
        overlay = TRUE,
        alpha = .09)
-
-#mean dates
-SpPhase <-
-  summaryBy(DOY_PL ~ Phase * Scientific.Name,
-            data = ModifiedDate,
-            FUN = mean)
-PhaseMean <- summaryBy(DOY_PL.mean ~ Phase, data = SpPhase, FUN = mean)
 
 
 ######################################
@@ -532,17 +523,17 @@ wide$ChangeBPLAEL <-
   with(wide, (((BreedingPeriod.LaNina - BreedingPeriod.elNino) / BreedingPeriod.LaNina
   ) * 100))
 
-########################
-#paired - t- tests
-########################
-with(wide,
-     t.test(BreedingPeriod.LaNina, BreedingPeriod.Neutral , paired = TRUE))
-with(wide,
-     t.test(Quantile5.LaNina, Quantile5.Neutral , paired = TRUE))
-with(wide,
-     t.test(Quantile50.LaNina, Quantile50.Neutral , paired = TRUE))
-with(wide,
-     t.test(Quantile95.LaNina, Quantile95.Neutral , paired = TRUE))
+# ########################
+# #paired - t- tests
+# ########################
+# with(wide,
+#      t.test(BreedingPeriod.LaNina, BreedingPeriod.Neutral , paired = TRUE))
+# with(wide,
+#      t.test(Quantile5.LaNina, Quantile5.Neutral , paired = TRUE))
+# with(wide,
+#      t.test(Quantile50.LaNina, Quantile50.Neutral , paired = TRUE))
+# with(wide,
+#      t.test(Quantile95.LaNina, Quantile95.Neutral , paired = TRUE))
 
 BL <-
   subset(
@@ -589,7 +580,7 @@ d$time <- "LtoN"
 c <- rbind(c, d)
 c$time <- as.factor(c$time)
 
-fit <- lmer(change ~ end * time , data = c)
+fit <- lmer(change ~ end * time + (1|Order), data = c)
 qqPlot(residuals(fit))
 par(mfrow = c(1, 2))
 plot(fit, which = c(3, 2))
@@ -665,114 +656,5 @@ sd(dec$ChangeBPLAEL)
 
 
 
-# #make supplementary table
-# allDat$Region<-"Arid"
-#
-# write.csv(allDat,'/Users/daisy/GoogleDrive/PhD/ENSO/Tables/AridSummary.csv',row.names=FALSE)
-#
-
-
-
-###############################################
-
-#No evidence that breeding periods are more skewed later in the year
-#for either La Nina or El Nino breeding observations
-###############################################
-
-lm1<-lm(Skew90.LaNina~modified95NEU,data=wide)
-summary(lm1)
-lm2<-lm(Skew90.elNino~modified95NEU,data=wide)
-summary(lm2)
-
-##########################################
-#La Nina significnatly more skewed than either El Nino or newutral phase
-#La Nina years are left skewed, and others right skewed
-
-#########################################
-
-skewLong<-rbind(data.frame(x=wide$Skew90.Neutral,y="Neutral"),
-                rbind(data.frame(x=wide$Skew90.LaNina,y="LaNina"),
-                      data.frame(x=wide$Skew90.elNino,y="ElNino")))
-lm3<-lm(x~y  ,data=skewLong)
-summary(lm3)
-Tukeyskew<- glht(lm3, linfct=mcp(y="Tukey"))
-summary(lm3)
-lm4<-lm(Skew90.LaNina~Skew90.Neutral  ,data=wide)
-summary(lm4)
-lm5<-lm(Skew90.Neutral~Skew90.elNino  ,data=wide)
-summary(lm5)
-qqPlot(residuals(lm5))
-
-summaryBy(x~y,data=skewLong)
-
-##############################
-#bean plots comparing La and El
-##############################
-
-
-E5<-subset(wide, select="Quantile5.elNino")
-colnames(E5)<-"date"
-E5$time<-"Start 1"
-
-E50<-subset(wide, select="Quantile50.elNino")
-colnames(E50)<-"date"
-E50$time<-"Peak 1"
-
-E95<-subset(wide, select="modified95")
-colnames(E95)<-"date"
-E95$time<-"Conc 1"
-
-L5<-subset(wide, select="Quantile5.LaNina")
-colnames(L5)<-"date"
-L5$time<-"Start 2"
-
-L50<-subset(wide, select="Quantile50.LaNina")
-colnames(L50)<-"date"
-L50$time<-"Peak 2"
-
-L95<-subset(wide, select="modified95LA")
-colnames(L95)<-"date"
-L95$time<-"Conc 2"
-
-beanDat<-rbind(rbind(rbind(E5,E50),rbind(E95,L5)),rbind(L50,L95))
-
-
-
-beanDat$Season<-factor(beanDat$time)
-beanDatSeason = factor(beanDat$time,levels(beanDat$time)[c(1,4,2,5,3,6)])
-
-library("vioplot")
-library(beanplot)
-library(doBy)
-
-summaryBy(modified95~time,data=wide,FUN=c(min,max))
-
-# pdf(file = paste0("/Users/daisy/GoogleDrive/PhD/ENSO/Manuscript/GlobalChangeBiology/Figures/",as.Date(Sys.time()),".pdf"),
-#     width = 3.2, height = 6)
-par(mfrow = c(2,1),
-    mar = c(2,4,2,1))
-
-# beanplot(ChangeBPEL~season,data=wide, ll = 0.04, main = NA,
-#          col="white",method="jitter",
-#          ylab=expression(paste("%",Delta)),
-#          show.names=FALSE)
-# mtext(expression(bold(paste("(a) %",Delta," egg-laying period"))),line=-1.7,outer=TRUE,side=3,adj=0)
-# text(.95,45,"a",cex=.8)
-# text(1.95,45,"b",cex=.8)
-# text(2.95,45,"b",cex=.8)
-
-beanplot(date ~ time, data = beanDat, ll = 0.04,log="",
-         ylab = "days", side = "both",
-         col = list("black", c("grey", "white")))
-
-legend("bottomright", fill = c("black", "grey"),
-       legend = c("El Nino", "La Nina"),bty="n",cex=.8)
-
-# mtext(expression(bold(paste("(b) Length of the egg-laying period"))),
-#       line=-16,outer=TRUE,side=3,adj=0)
-
-
-
-dev.off()
 
 
