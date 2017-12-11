@@ -119,8 +119,8 @@ dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
 
 ##########################
 
-#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
-TEMP <- subset(dat, koeppen == 3)#temperate region
+TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
+#TEMP <- subset(dat, koeppen == 3)#temperate region
 TEMP$month <-
   formatC(TEMP$month, width = 2, flag = '0') #format months 1 becomes 01
 TEMP$date <-
@@ -491,7 +491,7 @@ wide$longerBPNEU <-
 wide$laterpeakNEU <- with(wide, Quantile50.LaNina - Quantile50.Neutral)
 wide$laterconclusionNEU <- with(wide, modified95LA - modified95NEU)
 
-write.csv(wide, '/Users/daisy/GoogleDrive/PhD/ENSO/Tables/TemperateWideSummary.csv', row.names=F)
+#write.csv(wide, '/Users/daisy/GoogleDrive/PhD/ENSO/Tables/TemperateWideSummary.csv', row.names=F)
 
 #% of species with earlier starts during La Nina
 nrow(subset(wide, earlierstart < 0)) / nrow(wide) * 100
@@ -523,17 +523,6 @@ wide$ChangeBPLAEL <-
   with(wide, (((BreedingPeriod.LaNina - BreedingPeriod.elNino) / BreedingPeriod.LaNina
   ) * 100))
 
-# ########################
-# #paired - t- tests
-# ########################
-# with(wide,
-#      t.test(BreedingPeriod.LaNina, BreedingPeriod.Neutral , paired = TRUE))
-# with(wide,
-#      t.test(Quantile5.LaNina, Quantile5.Neutral , paired = TRUE))
-# with(wide,
-#      t.test(Quantile50.LaNina, Quantile50.Neutral , paired = TRUE))
-# with(wide,
-#      t.test(Quantile95.LaNina, Quantile95.Neutral , paired = TRUE))
 
 BL <-
   subset(
@@ -546,7 +535,7 @@ BL <-
       "BreedingPeriod.elNino"
     )
   )
-colMeans(BL[2:4])
+colMeans(BL[3:5])
 
 
 
@@ -555,18 +544,12 @@ colMeans(BL[2:4])
 
 #####################
 #Can we explain those species that have biggest change in breeding in relation to the time of year
+#those species that during neutral conditions breed before the end of the year
+#vs those that breed after the turn of the year
 #################
 
 
-# lmChange<-lm(ChangeBPELNeu~modified95NEU  ,data=wide)#EL to Nu
-# summary(lmChange)
-# lmChange<-lm(ChangeBPEL~modified95NEU  ,data=wide)
-# summary(lmChange)#end data explains about 16% if variation we observe, with those concluding earlier in the year
-# lmChange<-lm(ChangeBPLANeu~modified95NEU  ,data=wide)
-# summary(lmChange)
-#
-
-#change data around to use with visreag
+#reformat data
 a <- subset(wide, select = c("ChangeBPELNeu", "modified95NEU", "Order"))
 colnames(a) <- c("change", "end", "Order")
 a$time <- "EtoNeu"
@@ -579,8 +562,40 @@ colnames(d) <- c("change", "end", "Order")
 d$time <- "LtoN"
 c <- rbind(c, d)
 c$time <- as.factor(c$time)
+c$EL<-as.factor(ifelse(c$end<=365,"A","B"))
+c$phaseTime<-paste0(c$time,c$EL)
 
-fit <- lmer(change ~ end * time + (1|Order), data = c)
+changeDat<-subset(c, time == "EtoNeu" | time == "LtoN")
+
+#model to assess if species that breed primarily in the spring months have a greater response to La Niña and El Niño events, when compared to Neutral conditions
+summary(fit <- lmer(change ~ phaseTime + (1+phaseTime|Order), data = changeDat))
+
+
+lsmeansLT(fit)
+qqPlot(residuals(fit), main = ("DOY"))
+Anova(fit, test.statistic = "Chisq")#get p value
+anova(fit, test = "marginal", type = 2)#get F statement
+r.squaredGLMM(fit)
+lsmeansLT(fit)
+
+###############################
+#alternative analysis
+#############################
+#change data around to use with visreag
+a <- subset(wide, select = c("ChangeBPELNeu", "modified95NEU", "Order"))
+colnames(a) <- c("change", "end", "Order")
+a$time <- "EtoNeu"
+# b <- subset(wide, select = c("ChangeBPEL", "modified95NEU", "Order"))
+# colnames(b) <- c("change", "end", "Order")
+# b$time <- "EtoL"
+# c <- rbind(a, b)
+d <- subset(wide, select = c("ChangeBPLANeu", "modified95NEU", "Order"))
+colnames(d) <- c("change", "end", "Order")
+d$time <- "LtoN"
+c <- rbind(a, d)
+c$time <- as.factor(c$time)
+
+fit <- lmer(change ~ time * end +(1+time|Order), data = c)
 qqPlot(residuals(fit))
 par(mfrow = c(1, 2))
 plot(fit, which = c(3, 2))
@@ -592,13 +607,17 @@ visreg(fit,
        alpha = .095)
 
 summary(fit)
-anova(fit, test = "marginal", type = 2)#
+anova(fit, test = "marginal", type = 2)#get F statement
 r.squaredGLMM(fit)
+Anova(fit, test.statistic = "Chisq")#get p value
+r.squaredGLMM(fit)
+lsmeansLT(fit)
+
 
 
 pdf(
   file = paste0(
-    "/Users/daisy/GoogleDrive/PhD/ENSO/TemperateChangeELP",
+    "/Users/daisy/GoogleDrive/PhD/ENSO/Figures/TemperateChangeELP",
     as.Date(Sys.time()),
     ".pdf"
   ),
@@ -615,14 +634,14 @@ visreg(
   "end",
   by = "time",
   overlay = TRUE,
-  alpha = .09,
-  line = list(col = c("goldenrod1", "grey50", "navy")),
+  alpha = .095,
+  line = list(col = c("grey50","goldenrod1")),
   points = list(
     cex = .7,
     pch = 20,
-    col = c("goldenrod1", "grey50", "navy")
+    col = c("grey50","goldenrod1")
   ),
-  fill = list(col = c("#FFC1257F", "#7F7F7F7F", "#0000807F")),
+  fill = list(col = c( "#7F7F7F7F", "#FFC1257F")),
   ylab = "% change",
   xlab = "month",
   legend = FALSE,
@@ -637,23 +656,23 @@ axis(
 
 legend(
   380,
-  -40,
-  c("La Nina to Neutral*", "El Nino to Neutral", "El Nino to La Nina*"),
+  -30,
+  c("La Nina to Neutral*", "El Nino to Neutral"),
   lwd = 4,
-  col = rev(c("goldenrod1", "grey50", "navy")),
+  col = rev(c("grey50","goldenrod1")),
   bty = 'n'
 )
 
 dev.off()
 
-#change in breedin length compared to La nina, breeding that ends by dec 1
-dec <- subset(wide, modified95NEU < 365)
-mean(dec$ChangeBPLANeu) #La nina to neutral
-sd(dec$ChangeBPLANeu)
-mean(dec$ChangeBPLAEL) #La nina to El Nino
-sd(dec$ChangeBPLAEL)
-
-
+# #change in breedin length compared to La nina, breeding that ends by dec 1
+# dec <- subset(wide, modified95NEU < 365)
+# mean(dec$ChangeBPLANeu) #La nina to neutral
+# sd(dec$ChangeBPLANeu)
+# mean(dec$ChangeBPELNeu) #La nina to El Nino
+# sd(dec$ChangeBPELNeu)
+# 
+# 
 
 
 
