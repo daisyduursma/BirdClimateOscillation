@@ -119,8 +119,8 @@ dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
 
 ##########################
 
-TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
-#TEMP <- subset(dat, koeppen == 3)#temperate region
+#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
+TEMP <- subset(dat, koeppen == 3)#temperate region
 TEMP$month <-
   formatC(TEMP$month, width = 2, flag = '0') #format months 1 becomes 01
 TEMP$date <-
@@ -595,6 +595,9 @@ d$time <- "LtoN"
 c <- rbind(a, d)
 c$time <- as.factor(c$time)
 
+# cArid<-c
+# fitArid <- lmer(change ~ time * end +(1+time|Order), data = cArid)
+
 fit <- lmer(change ~ time * end +(1+time|Order), data = c)
 qqPlot(residuals(fit))
 par(mfrow = c(1, 2))
@@ -613,7 +616,7 @@ Anova(fit, test.statistic = "Chisq")#get p value
 r.squaredGLMM(fit)
 lsmeansLT(fit)
 
-
+#fitTemp<-fit
 
 pdf(
   file = paste0(
@@ -621,11 +624,11 @@ pdf(
     as.Date(Sys.time()),
     ".pdf"
   ),
-  width = 6,
-  height = 4
+  width = 3.3,
+  height = 5
 )
 
-par(mfrow = c(1, 1),
+par(mfrow = c(2, 1),
     mar = c(5, 4, 1, 1))
 
 
@@ -655,12 +658,37 @@ axis(
 
 
 legend(
-  380,
-  -30,
-  c("La Nina to Neutral*", "El Nino to Neutral"),
+  360,
+  -15,
+  c("La Nina", "El Nino"),
   lwd = 4,
   col = rev(c("grey50","goldenrod1")),
   bty = 'n'
+)
+
+
+visreg(
+  fitArid,
+  "end",
+  by = "time",
+  overlay = TRUE,
+  alpha = .095,
+  line = list(col = c("grey50","goldenrod1")),
+  points = list(
+    cex = .7,
+    pch = 20,
+    col = c("grey50","goldenrod1")
+  ),
+  fill = list(col = c( "#7F7F7F7F", "#FFC1257F")),
+  ylab = "% change",
+  xlab = "month",
+  legend = FALSE,
+  xaxt = 'n'
+)
+axis(
+  side = 1,
+  at = c(258, 289, 320, 350, 381, 413, 440, 470),
+  c("Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr")
 )
 
 dev.off()
