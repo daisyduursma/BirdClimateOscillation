@@ -24,6 +24,7 @@ library(lmerTest)
 library(spdep)
 library(lme4)
 library(MuMIn)
+library(nlme)
 #library(afex)
 library(ENmisc)
 #library(arm)
@@ -412,7 +413,26 @@ ModifiedDate$logelev <- log10(ModifiedDate$elevation)
 ModifiedDate$logdist <- log10(ModifiedDate$distToCoast)
 
 
+# #lme linear mixed-effects regression command in the nlme R package allows the user to fit a regression model in which the outcome and the expected errors are spatially autocorrelated. 
+# 
+# ensolm <- lme(fixed = modifiedDOY ~ BreedingENSO + logelev * logdist + lat, 
+#               data = ModifiedDate, 
+#               random = list(~1+BreedingENSO|Scientific.Name, ~1|Year, ~1|Acc, ~1|Order)) 
+# 
+# summary(ensolm)
+# r.squaredGLMM(ensolm) 
+# 
+# soil.gau <- update(ensolm, correlation = corGaus(1, form = ~lat+lon))
+# summary(soil.gau)
+# r.squaredGLMM(ensolm)                
+            
+
+
 #FULL - all fixed effects and random model
+
+# ModifiedDate$lat<-round(ModifiedDate$lat,2)
+# ModifiedDate$lon<-round(ModifiedDate$lon,2)
+# ModifiedDate<-unique(ModifiedDate)
 
 mF <-
   lmer(
