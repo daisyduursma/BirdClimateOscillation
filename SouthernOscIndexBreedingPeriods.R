@@ -113,6 +113,14 @@ dat$koeppen <- raster::extract(koeppen, cbind(dat$lon, dat$lat))
 #convert data to radians to make circular vector
 dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
 
+
+
+# ModifiedDate$lat<-round(ModifiedDate$lat,2)
+# ModifiedDate$lon<-round(ModifiedDate$lon,2)
+# ModifiedDate<-unique(ModifiedDate)
+
+
+
 ##########################
 #Chose the region of interest
 #Analysis is identical for both regions
@@ -120,8 +128,8 @@ dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
 
 ##########################
 
-#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
-TEMP <- subset(dat, koeppen == 3)#temperate region
+TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
+#TEMP <- subset(dat, koeppen == 3)#temperate region
 TEMP$month <-
   formatC(TEMP$month, width = 2, flag = '0') #format months 1 becomes 01
 TEMP$date <-
@@ -414,40 +422,21 @@ ModifiedDate$logdist <- log10(ModifiedDate$distToCoast)
 
 
 
-# ModifiedDate$lat<-round(ModifiedDate$lat,2)
-# ModifiedDate$lon<-round(ModifiedDate$lon,2)
-# ModifiedDate<-unique(ModifiedDate)
-
-
-#lme linear mixed-effects regression command in the nlme R package allows the user to fit a regression model in which the outcome and the expected errors are spatially autocorrelated.
-
-ensolm <- lme(fixed = modifiedDOY ~ BreedingENSO + logelev * logdist + lat,
-              data = ModifiedDate,
-              random = ~ 1 |Order/Scientific.Name)
-
-library(visreg)
-
-visreg(ensolm, "BreedingENSO")
-
-ensolm2 <- lme(fixed = modifiedDOY ~ BreedingENSO + logelev * logdist + lat,
-              data = ModifiedDate,
-              random = ~ 1 |Scientific.Name)
+#linear mixed-effects and variogram to assess forcitation spatially autocorrelated.
+                ensolm <- lme(fixed = modifiedDOY ~ BreedingENSO + logelev * logdist + lat,
+                          data = ModifiedDate,
+                          random = ~ 1 |Order/Scientific.Name)
+                
+                plot(Variogram(ensolm,resType="normalized",form=~lat+lon))
 
 
 
 
-summary(ensolm)
-r.squaredGLMM(ensolm)
-
-soil.gau <- update(ensolm, correlation = corGaus(1, form = ~lat+lon))
-summary(soil.gau)
-r.squaredGLMM(ensolm)
-            
 
 mF <-
   lmer(
     modifiedDOY ~ BreedingENSO + logelev * logdist + 
-      lat + (1|Year) + (1 + BreedingENSO| Scientific.Name),
+      lat + (1|Year) + (1 + BreedingENSO| Scientific.Name)+(1|Order)+(1|Acc),
     REML = T,
     data = ModifiedDate
   )
@@ -733,6 +722,47 @@ dev.off()
 # sd(dec$ChangeBPELNeu)
 # 
 # 
+
+####################
+#average first edd date and length
+###################
+
+Quantile5.elNino
+
+BreedingPeriod.LaNina
+
+summary(a<-lm(Quantile5.Elnino~BreedingPeriod.Neutral,wide))
+
+plot(Quantile5.Neutral~BreedingPeriod.Neutral,wide)
+abline(a)
+
+
+####################
+#pair-wise t-tests of start of breeding periods
+####################
+#rearange data
+#start
+datL<-data.frame(wide$Quantile5.LaNina,group="LaNina")
+colnames(datL)<-c("var","group")
+datN<-data.frame(wide$Quantile5.Neutral,group = "Neutral")
+colnames(datN)<-c("var","group")
+dat<-rbind(datL,datN)
+with(dat, t.test(var[group == "LaNina"], var[group == "Neutral"]))
+
+#conclusion La
+datL<-data.frame(wide$modified95LA,group="LaNina")
+colnames(datL)<-c("var","group")
+datN<-data.frame(wide$modified95NEU,group = "Neutral")
+colnames(datN)<-c("var","group")
+dat<-rbind(datL,datN)
+with(dat, t.test(var[group == "LaNina"], var[group == "Neutral"]))
+#conclusion EL
+datL<-data.frame(wide$modified95,group="LaNina")
+colnames(datL)<-c("var","group")
+datN<-data.frame(wide$modified95NEU,group = "Neutral")
+colnames(datN)<-c("var","group")
+dat<-rbind(datL,datN)
+with(dat, t.test(var[group == "LaNina"], var[group == "Neutral"]))
 
 
 
