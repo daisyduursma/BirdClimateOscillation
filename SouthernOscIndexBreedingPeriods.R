@@ -128,8 +128,8 @@ dat$Radians <- (dat$DOY_PL / 365 * 360) * pi / 180
 
 ##########################
 
-TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
-#TEMP <- subset(dat, koeppen == 3)#temperate region
+#TEMP<-subset(dat, koeppen == 22 |koeppen == 13) #arid region Breeding Period
+TEMP <- subset(dat, koeppen == 3)#temperate region
 TEMP$month <-
   formatC(TEMP$month, width = 2, flag = '0') #format months 1 becomes 01
 TEMP$date <-
@@ -512,6 +512,11 @@ wide$longerBPNEU <-
 wide$laterpeakNEU <- with(wide, Quantile50.LaNina - Quantile50.Neutral)
 wide$laterconclusionNEU <- with(wide, modified95LA - modified95NEU)
 
+
+wide$shorterBPNEUEL <-
+  with(wide,  BreedingPeriod.elNino - BreedingPeriod.Neutral)
+
+
 #write.csv(wide, '/Users/daisy/GoogleDrive/PhD/ENSO/Tables/TemperateWideSummary.csv', row.names=F)
 
 #% of species with earlier starts during La Nina
@@ -521,6 +526,9 @@ nrow(subset(wide, earlierstartNEU < 0)) / nrow(wide) * 100
 #% species with longer breeding periods
 nrow(subset(wide, longerBPEL > 0)) / nrow(wide) * 100
 nrow(subset(wide, longerBPNEU > 0)) / nrow(wide) * 100
+#shorter during El Nino
+nrow(subset(wide, shorterBPNEUEL < 0)) / nrow(wide) * 100
+
 
 #xx% of species having later peaks and
 nrow(subset(wide, wide$laterpeak > 0)) / nrow(wide) * 100
